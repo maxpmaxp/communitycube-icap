@@ -29,7 +29,7 @@ class ICAPHandler(BaseICAPRequestHandler):
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
         self.set_icap_header('Methods', 'RESPMOD')
-        self.set_icap_header('ISTag', self.istag)
+        self.set_icap_header('ISTag', self.version)
         self.set_icap_header('Preview', '0')
         self.set_icap_header('Transfer-Ignore', ', '.join(self.ignore_files))
         self.set_icap_header('Transfer-Preview', '*')
