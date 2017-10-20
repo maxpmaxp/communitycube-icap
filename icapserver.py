@@ -1,10 +1,13 @@
 # -*- coding: utf8 -*-
 
+import logging
+
 from pyicap import BaseICAPRequestHandler
 
 
 class ICAPHandler(BaseICAPRequestHandler):
 
+    preview_size = b'512'
     _server_version = 'CommunitycubeICAP/0.1a'
 
     ignore_files = (b'gif', b'jpg', b'png', b'jpeg', b'txt', b'pdf', b'js', b'exe', b'bin', b'tiff', b'ttf', b'svg',
@@ -14,29 +17,81 @@ class ICAPHandler(BaseICAPRequestHandler):
                     b'mpv', b'm2v', b'svi', b'3gp', b'3g2', b'mxf', b'roq', b'nsv', b'flv', b'f4v', b'f4p', b'f4a',
                     b'f4b')
 
-    # Simple echo-style server icap://icap.myorganization.com/echo
-
-    def echo_OPTIONS(self):
-        self.set_icap_response(200)
-        self.set_icap_header(b'Methods', b'RESPMOD')
-        self.set_icap_header(b'Preview', b'0')
-        self.send_headers(False)
-
-    def echo_RESPMOD(self):
-        self.no_adaptation_required()
-
     # Simple echo-style server icap://icap.myorganization.com/communitycube_menu
+
+    @property
+    def res_status_code(self):
+        try:
+            status = int(self.enc_res_status[1])
+        except Exception:
+            logging.warning('Unexpected status line: {}'.format(str(self.enc_res_status)))
+            status = None
+        return status
+
+    @property
+    def res_content_type(self):
+        ct_headers = self.enc_res_headers.get(b'content-type')
+        if ct_headers:
+            if len(ct_headers) > 1:
+                logging.warning("Too many content-type headers: {}".format(ct_headers))
+            return ct_headers[0]
 
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
         self.set_icap_header(b'Methods', b'RESPMOD')
-        self.set_icap_header(b'Preview', b'0')
+        self.set_icap_header(b'Preview', self.preview_size)
         self.set_icap_header(b'Transfer-Ignore', b', '.join(self.ignore_files))
         self.set_icap_header(b'Transfer-Preview', b'*')
         self.send_headers(False)
 
+    def is_adaptation_required(self):
+        return self.has_body \
+               and self.res_status_code == 200 \
+               and self.res_content_type \
+               and self.res_content_type.startswith(b'text/html')
+
+    def send_modified_content(self, head):
+        self.set_icap_response(200)
+
+        if self.enc_res_status is not None:
+            self.set_enc_status(b' '.join(self.enc_res_status))
+        for h in self.enc_res_headers:
+            for v in self.enc_res_headers[h]:
+                self.set_enc_header(h, v)
+
+        self.send_headers(True)
+
+        # Send modified head
+        self.write_chunk(head)
+
+        # Send unread tail
+        while not self.ieof:
+            chunk = self.read_chunk()
+            self.write_chunk(chunk)
+            if chunk == b'':
+                break
+        else:
+            self.write_chunk(b'')
+
     def communitycube_menu_RESPMOD(self):
-        self.no_adaptation_required()
+        if not self.is_adaptation_required():
+            self.no_adaptation_required()
+            return
+
+        was_modified = False
+        if self.preview:
+            chunk = self.read_chunk()
+            tag = b'<head>'
+            injection = b'<!-- CommunityCube ICAP code -->'
+            try:
+                i_tag_end = chunk.index(tag) + len(tag)
+                chunk = chunk[:i_tag_end] + injection + chunk[i_tag_end:]
+                self.send_modified_content(chunk)
+            except ValueError:
+                pass
+
+        if not was_modified:
+            self.no_adaptation_required()
 
 
 if __name__ == '__main__':
