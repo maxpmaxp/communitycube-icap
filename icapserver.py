@@ -34,7 +34,7 @@ class ICAPHandler(BaseICAPRequestHandler):
         self.set_icap_header(b'Preview', b'0')
         self.set_icap_header(b'Transfer-Ignore', b', '.join(self.ignore_files))
         self.set_icap_header(b'Transfer-Preview', b'*')
-
+        self.send_headers(False)
 
     def communitycube_menu_RESPMOD(self):
         self.no_adaptation_required()
