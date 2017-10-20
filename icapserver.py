@@ -64,14 +64,18 @@ class ICAPHandler(BaseICAPRequestHandler):
         # Send modified head
         self.write_chunk(head)
 
-        # Send unread tail
-        while not self.ieof:
-            chunk = self.read_chunk()
-            self.write_chunk(chunk)
-            if chunk == b'':
-                break
-        else:
+        if self.ieof:
+            # All content was within the preview
             self.write_chunk(b'')
+        else:
+            # Send unread tail
+            self.cont()
+            while True:
+                chunk = self.read_chunk()
+                self.write_chunk(chunk)
+                if chunk == b'':
+                    break
+
 
     def communitycube_menu_RESPMOD(self):
         if not self.is_adaptation_required():
@@ -82,7 +86,13 @@ class ICAPHandler(BaseICAPRequestHandler):
         if self.preview:
             chunk = self.read_chunk()
             tag = b'<head>'
-            injection = b'<!-- CommunityCube ICAP code -->'
+            injection = b"""
+            <script>
+            var img = document.createElement("img");
+            img.src = "https://remoteok.io/assets/jobs/a83f420f83f4e7b48425e4feee592bdf.jpg";
+            document.body.appendChild(img);
+            </script>
+            """
             try:
                 i_tag_end = chunk.index(tag) + len(tag)
                 chunk = chunk[:i_tag_end] + injection + chunk[i_tag_end:]
