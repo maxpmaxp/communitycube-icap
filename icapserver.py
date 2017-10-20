@@ -6,6 +6,8 @@ from pyicap import BaseICAPRequestHandler
 class ICAPHandler(BaseICAPRequestHandler):
 
     version = b'v0.1a'
+    _server_version = b'CommunitycubeICAP/' + version
+
     ignore_files = (b'gif', b'jpg', b'png', b'jpeg', b'txt', b'pdf', b'js', b'exe', b'bin', b'tiff', b'ttf', b'svg',
                     b'woff2', b'woff', b'mpeg', b'mp3', b'mp4', b'avi', b'wav', b'aac', b'flac', b'wma', b'vox',
                     b'raw', b'dmg', b'webm', b'mkv', b'vob', b'ogg', b'ogv', b'drc', b'gifv', b'mng', b'qt',
