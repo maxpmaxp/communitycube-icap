@@ -5,8 +5,7 @@ from pyicap import BaseICAPRequestHandler
 
 class ICAPHandler(BaseICAPRequestHandler):
 
-    version = b'v0.1a'
-    _server_version = b'CommunitycubeICAP/' + version
+    _server_version = 'CommunitycubeICAP/0.1a'
 
     ignore_files = (b'gif', b'jpg', b'png', b'jpeg', b'txt', b'pdf', b'js', b'exe', b'bin', b'tiff', b'ttf', b'svg',
                     b'woff2', b'woff', b'mpeg', b'mp3', b'mp4', b'avi', b'wav', b'aac', b'flac', b'wma', b'vox',
@@ -21,7 +20,6 @@ class ICAPHandler(BaseICAPRequestHandler):
         self.set_icap_response(200)
         self.set_icap_header(b'Methods', b'RESPMOD')
         self.set_icap_header(b'Preview', b'0')
-        self.set_icap_header(b'ISTag', self.version)
         self.send_headers(False)
 
     def echo_RESPMOD(self):
@@ -32,7 +30,6 @@ class ICAPHandler(BaseICAPRequestHandler):
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
         self.set_icap_header(b'Methods', b'RESPMOD')
-        self.set_icap_header(b'ISTag', self.version)
         self.set_icap_header(b'Preview', b'0')
         self.set_icap_header(b'Transfer-Ignore', b', '.join(self.ignore_files))
         self.set_icap_header(b'Transfer-Preview', b'*')
