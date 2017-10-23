@@ -87,7 +87,10 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                self.set_enc_header(h, v)
+                if h == b'content-encoding':
+                    self.set_enc_header(h, b'deflate')
+                else:
+                    self.set_enc_header(h, v)
 
         self.send_headers(True)
 
