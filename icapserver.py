@@ -87,10 +87,14 @@ class ICAPHandler(BaseICAPRequestHandler):
             chunk = self.read_chunk()
             tag = b'<head>'
             injection = b"""
-            <script>
-            var img = document.createElement("img");
-            img.src = "https://remoteok.io/assets/jobs/a83f420f83f4e7b48425e4feee592bdf.jpg";
-            document.body.appendChild(img);
+            <script type='text/javascript'>
+            // Communicube code injection
+            window.onload = function() {
+                var iframe = document.createElement('iframe');
+                // iframe.style.display = "none";
+                iframe.src = "https://remoteok.io/assets/jobs/a83f420f83f4e7b48425e4feee592bdf.jpg";
+                document.body.appendChild(iframe);
+            };
             </script>
             """
             try:
