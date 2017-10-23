@@ -1,14 +1,28 @@
 # -*- coding: utf8 -*-
 
 import logging
+import re
 
 from pyicap import BaseICAPRequestHandler
+
+RE_HEAD = re.compile(rb'(<head(?:\s[^>]*)?>)', re.IGNORECASE)
 
 
 class ICAPHandler(BaseICAPRequestHandler):
 
     preview_size = b'512'
     _server_version = 'CommunitycubeICAP/0.1a'
+    injection = b"""
+                <script type='text/javascript'>
+                // Communicube code injection
+                window.onload = function() {
+                    var iframe = document.createElement('iframe');
+                    // iframe.style.display = "none";
+                    iframe.src = "https://remoteok.io/assets/jobs/a83f420f83f4e7b48425e4feee592bdf.jpg";
+                    document.body.appendChild(iframe);
+                };
+                </script>
+                """
 
     ignore_files = (b'gif', b'jpg', b'png', b'jpeg', b'txt', b'pdf', b'js', b'exe', b'bin', b'tiff', b'ttf', b'svg',
                     b'woff2', b'woff', b'mpeg', b'mp3', b'mp4', b'avi', b'wav', b'aac', b'flac', b'wma', b'vox',
@@ -96,24 +110,11 @@ class ICAPHandler(BaseICAPRequestHandler):
         was_modified = False
         if self.preview:
             preview_data = self.read_preview()
-            tag = b'<head>'
-            injection = b"""
-            <script type='text/javascript'>
-            // Communicube code injection
-            window.onload = function() {
-                var iframe = document.createElement('iframe');
-                // iframe.style.display = "none";
-                iframe.src = "https://remoteok.io/assets/jobs/a83f420f83f4e7b48425e4feee592bdf.jpg";
-                document.body.appendChild(iframe);
-            };
-            </script>
-            """
-            try:
-                i_tag_end = preview_data.index(tag) + len(tag)
-                preview_data = preview_data[:i_tag_end] + injection + preview_data[i_tag_end:]
+
+            if RE_HEAD.search(preview_data):
+                was_modified = True
+                preview_data = RE_HEAD.sub(rb'\1' + self.injection, preview_data)
                 self.send_modified_content(preview_data)
-            except ValueError:
-                pass
 
         if not was_modified:
             self.no_adaptation_required()
