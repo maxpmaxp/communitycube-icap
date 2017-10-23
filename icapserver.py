@@ -109,24 +109,25 @@ class ICAPHandler(BaseICAPRequestHandler):
             super(ICAPHandler, self).write_chunk()
             return
 
+        for i in range(0, len(data), chunk_size):
+            super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
+
+    def send_modified_content(self, head, iterator):
         writer = ICAPStreamWriter(self)
         if self.is_gzipped_content:
             writer = GzipFile(fileobj=writer, mode='w')
 
-        for i in range(0, len(data), chunk_size):
-            writer.write(data[i:i+chunk_size])
-
-    def send_modified_content(self, head, iterator):
         if self.ieof:
             # All content was within the preview
-            self.write_chunk(head)
+            writer.write(head)
             self.write_chunk(b'')
         else:
             # Send unread tail
-            self.write_chunk(head)
+            writer.write(head)
             for chunk in iterator:
-                self.write_chunk(chunk)
+                writer.write(chunk)
             self.write_chunk(b'')
+
 
     def iter_chuncks(self):
         unpack = lambda x: x
