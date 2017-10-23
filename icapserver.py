@@ -83,7 +83,7 @@ class ICAPHandler(BaseICAPRequestHandler):
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
                 if h == b'content-encoding':
-                    self.set_enc_header(h, [b'identity'])
+                    self.set_enc_header(h, b'identity')
                 else:
                     self.set_enc_header(h, v)
 
