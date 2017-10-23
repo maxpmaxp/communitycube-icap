@@ -8,6 +8,7 @@ from pyicap import BaseICAPRequestHandler
 PREVIEW_STATE = 'preview'
 BEFORE_CONTINUE = 'before_continue'
 DATA_STATE = 'data'
+FINAL_STATE = 'final'
 
 
 class ICAPHandler(BaseICAPRequestHandler):
@@ -122,6 +123,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             if self.rstream_state == DATA_STATE:
                 chunk = self.read_chunk()
                 if chunk == b'':
+                    self.rstream_state = FINAL_STATE
                     raise StopIteration()
                 yield unpack(chunk)
 
@@ -135,6 +137,7 @@ class ICAPHandler(BaseICAPRequestHandler):
                 self.rstream_state = BEFORE_CONTINUE
                 yield unpack(res)
                 if self.ieof:
+                    self.rstream_state = FINAL_STATE
                     raise StopIteration()
 
             if self.rstream_state == BEFORE_CONTINUE:
@@ -155,6 +158,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.no_adaptation_required()
             return
 
+        self.rstream_state = PREVIEW_STATE
         processed_chunks = []
         chunks_iterator = self.iter_chuncks()
         for chunk in chunks_iterator:
