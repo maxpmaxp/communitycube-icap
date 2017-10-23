@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 
-import logging
+import logging, zlib
 
 from pyicap import BaseICAPRequestHandler
 
@@ -46,13 +46,20 @@ class ICAPHandler(BaseICAPRequestHandler):
             status = None
         return status
 
+    def _get_res_header(self, name):
+        headers = self.enc_res_headers.get(name.lower())
+        if headers:
+            if len(headers) > 1:
+                logging.warning("Too many {0} headers: {1}".format(name, headers))
+            return headers[0]
+
     @property
     def res_content_type(self):
-        ct_headers = self.enc_res_headers.get(b'content-type')
-        if ct_headers:
-            if len(ct_headers) > 1:
-                logging.warning("Too many content-type headers: {}".format(ct_headers))
-            return ct_headers[0]
+        return self._get_res_header(b'content-type')
+
+    @property
+    def res_content_encoding(self):
+        return self._get_res_header(b'content-encoding')
 
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
@@ -68,14 +75,17 @@ class ICAPHandler(BaseICAPRequestHandler):
                and self.res_content_type \
                and self.res_content_type.startswith(b'text/html')
 
-    def send_unmodified_headers(self):
+    def send_modified_headers(self):
         self.set_icap_response(200)
 
         if self.enc_res_status is not None:
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                self.set_enc_header(h, v)
+                if h == b'content-encoding':
+                    self.set_enc_header(h, [b'identity'])
+                else:
+                    self.set_enc_header(h, v)
 
         self.send_headers(True)
 
@@ -93,12 +103,16 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.write_chunk(b'')
 
     def iter_chuncks(self):
+        unpack = lambda x: x
+        if 'gzip' in self.res_content_encoding:
+            unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
+
         while True:
             if self.rstream_state == DATA_STATE:
                 chunk = self.read_chunk()
                 if chunk == b'':
                     raise StopIteration()
-                yield chunk
+                yield unpack(chunk)
 
             if self.preview and self.rstream_state == PREVIEW_STATE:
                 res = b''
@@ -108,7 +122,7 @@ class ICAPHandler(BaseICAPRequestHandler):
                         break
                     res += chunk
                 self.rstream_state = DATA_STATE
-                yield res
+                yield unpack(res)
                 if self.ieof:
                     raise StopIteration()
                 self.cont()
@@ -148,7 +162,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             return
 
         # Return content
-        self.send_unmodified_headers()
+        self.send_modified_headers()
         self.send_modified_content(b"".join(processed_chunks), chunks_iterator)
 
 
