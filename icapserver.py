@@ -189,7 +189,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             processed_chunks.append(chunk)
 
         headers_to_update = {b'content-length': bytes(str(sum(map(len, processed_chunks))), "ascii"),
-                             b'content-type': b'identity'}
+                             b'content-encoding': b'identity'}
 
         # Return content
         self.send_modified_headers(headers_to_update)
