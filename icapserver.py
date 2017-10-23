@@ -50,7 +50,7 @@ class ICAPHandler(BaseICAPRequestHandler):
                and self.res_content_type \
                and self.res_content_type.startswith(b'text/html')
 
-    def send_modified_content(self, head):
+    def send_headers(self):
         self.set_icap_response(200)
 
         if self.enc_res_status is not None:
@@ -61,15 +61,18 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         self.send_headers(True)
 
-        # Send modified head
-        self.write_chunk(head)
+    def send_modified_content(self, head):
 
         if self.ieof:
             # All content was within the preview
+            self.send_headers()
+            self.write_chunk(head)
             self.write_chunk(b'')
         else:
             # Send unread tail
             self.cont()
+            self.send_headers()
+            self.write_chunk(head)
             while True:
                 chunk = self.read_chunk()
                 self.write_chunk(chunk)
