@@ -104,13 +104,13 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         self.send_headers(True)
 
-    def write_chunk(self, data=b'', chunk_size=4096):
-        if data == b'':
-            super(ICAPHandler, self).write_chunk()
-            return
-
-        for i in range(0, len(data), chunk_size):
-            super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
+    #def write_chunk(self, data=b'', chunk_size=4096):
+    #    if data == b'':
+    #        super(ICAPHandler, self).write_chunk()
+    #        return
+    #
+    #    for i in range(0, len(data), chunk_size):
+    #        super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
 
     def send_modified_content(self, head, iterator):
         writer = ICAPStreamWriter(self)
@@ -127,7 +127,6 @@ class ICAPHandler(BaseICAPRequestHandler):
             for chunk in iterator:
                 writer.write(chunk)
             self.write_chunk(b'')
-
 
     def iter_chuncks(self):
         unpack = lambda x: x
