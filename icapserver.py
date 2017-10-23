@@ -82,33 +82,23 @@ class ICAPHandler(BaseICAPRequestHandler):
                and self.res_content_type \
                and self.res_content_type.startswith(b'text/html')
 
-    def send_modified_headers(self):
+    def send_modified_headers(self, new_headers):
         self.set_icap_response(200)
 
         if self.enc_res_status is not None:
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                if h == b'content-encoding':
-                    self.set_enc_header(h, b'identity')
-                elif h == b'content-length':
-                    cl = int(self.res_content_length) + len(self.injection)
-                    self.set_enc_header(h, bytes(str(cl), "ascii"))
+                if h in new_headers:
+                    self.set_enc_header(h, new_headers[h])
                 else:
                     self.set_enc_header(h, v)
-
         self.send_headers(True)
 
-    def send_modified_content(self, head, iterator):
-
-        if self.ieof:
-            # All content was within the preview
-            self.write_chunk(head)
-        else:
+    def send_modified_content(self, chunks):
+        for ch in chunks:
             # Send unread tail
-            self.write_chunk(head)
-            for chunk in iterator:
-                self.write_chunk(chunk)
+            self.write_chunk(ch)
         self.write_chunk(b'')
 
     def cont(self):
@@ -194,18 +184,16 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.no_adaptation_required()
             return
 
-        # Send 100 Continue and read next chunk before sending response headers
-        if self.rstream_state == BEFORE_CONTINUE:
-            try:
-                processed_chunks.append(next(chunks_iterator))
-                self.cont()
-            except StopIteration:
-                pass
+        # read the rest
+        for chunk in chunks_iterator:
+            processed_chunks.append(chunk)
 
+        headers_to_update = {b'content-length': bytes(str(sum(map(len, processed_chunks))), "ascii"),
+                             b'content-type': b'identity'}
 
         # Return content
-        self.send_modified_headers()
-        self.send_modified_content(b"".join(processed_chunks), chunks_iterator)
+        self.send_modified_headers(headers_to_update)
+        self.send_modified_content(processed_chunks)
 
 
 if __name__ == '__main__':
