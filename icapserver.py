@@ -2,11 +2,24 @@
 
 import logging, zlib
 
+from gzip import GzipFile
+
 from pyicap import BaseICAPRequestHandler
 
 
 PREVIEW_STATE = 'preview'
 DATA_STATE = 'data'
+
+
+class ICAPStreamWriter(object):
+
+    def __init__(self, icap_handler):
+        self.icap_handler = icap_handler
+
+    def write(self, data):
+        if data:
+            self.icap_handler.write_chunk(data)
+
 
 class ICAPHandler(BaseICAPRequestHandler):
 
@@ -87,10 +100,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                if h == b'content-encoding':
-                    self.set_enc_header(h, b'deflate')
-                else:
-                    self.set_enc_header(h, v)
+                self.set_enc_header(h, v)
 
         self.send_headers(True)
 
@@ -98,11 +108,13 @@ class ICAPHandler(BaseICAPRequestHandler):
         if data == b'':
             super(ICAPHandler, self).write_chunk()
             return
-        pack = lambda x: x
+
+        writer = ICAPStreamWriter(self)
         if self.is_gzipped_content:
-            pack = zlib.compressobj().compress
+            writer = GzipFile(fileobj=writer, mode='w')
+
         for i in range(0, len(data), chunk_size):
-            super(ICAPHandler, self).write_chunk(pack(data[i:i+chunk_size]))
+            writer.write(data[i:i+chunk_size])
 
     def send_modified_content(self, head, iterator):
         if self.ieof:
