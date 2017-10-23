@@ -6,7 +6,9 @@ from pyicap import BaseICAPRequestHandler
 
 
 PREVIEW_STATE = 'preview'
+BEFORE_CONTINUE = 'before_continue'
 DATA_STATE = 'data'
+
 
 class ICAPHandler(BaseICAPRequestHandler):
 
@@ -102,6 +104,10 @@ class ICAPHandler(BaseICAPRequestHandler):
                 self.write_chunk(chunk)
             self.write_chunk(b'')
 
+    def cont(self):
+        super(ICAPHandler, self).cont()
+        self.rstream_state = DATA_STATE
+
     @property
     def is_gzipped_content(self):
         ce = self.res_content_encoding
@@ -126,10 +132,12 @@ class ICAPHandler(BaseICAPRequestHandler):
                     if chunk == b'':
                         break
                     res += chunk
-                self.rstream_state = DATA_STATE
+                self.rstream_state = BEFORE_CONTINUE
                 yield unpack(res)
                 if self.ieof:
                     raise StopIteration()
+
+            if self.rstream_state == BEFORE_CONTINUE:
                 self.cont()
 
     @staticmethod
@@ -165,6 +173,9 @@ class ICAPHandler(BaseICAPRequestHandler):
             # no suitable injection index was found
             self.no_adaptation_required()
             return
+
+        if self.rstream_state == BEFORE_CONTINUE:
+            self.cont()
 
         # Return content
         self.send_modified_headers()
