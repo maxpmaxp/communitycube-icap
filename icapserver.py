@@ -61,6 +61,11 @@ class ICAPHandler(BaseICAPRequestHandler):
     def res_content_encoding(self):
         return self._get_res_header(b'content-encoding')
 
+    @property
+    def is_gzipped_content(self):
+        ce = self.res_content_encoding
+        return bool(ce) and b'gzip' in ce
+
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
         self.set_icap_header(b'Methods', b'RESPMOD')
@@ -82,20 +87,19 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                if h == b'content-encoding':
-                    self.set_enc_header(h, b'identity')
-                else:
-                    self.set_enc_header(h, v)
+                self.set_enc_header(h, v)
 
         self.send_headers(True)
 
-    def write_chunk(self, data=b'', chunk_size=512):
+    def write_chunk(self, data=b'', chunk_size=4096):
         if data == b'':
             super(ICAPHandler, self).write_chunk()
             return
-
+        pack = lambda x: x
+        if self.is_gzipped_content:
+            pack = zlib.compressobj().compress
         for i in range(0, len(data), chunk_size):
-            super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
+            super(ICAPHandler, self).write_chunk(pack(data[i:i+chunk_size]))
 
     def send_modified_content(self, head, iterator):
         if self.ieof:
@@ -111,7 +115,7 @@ class ICAPHandler(BaseICAPRequestHandler):
 
     def iter_chuncks(self):
         unpack = lambda x: x
-        if b'gzip' in self.res_content_encoding:
+        if self.is_gzipped_content:
             unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
 
         while True:
