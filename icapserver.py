@@ -104,7 +104,7 @@ class ICAPHandler(BaseICAPRequestHandler):
 
     def iter_chuncks(self):
         unpack = lambda x: x
-        if 'gzip' in self.res_content_encoding:
+        if b'gzip' in self.res_content_encoding:
             unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
 
         while True:
