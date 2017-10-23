@@ -109,6 +109,13 @@ class ICAPHandler(BaseICAPRequestHandler):
         super(ICAPHandler, self).cont()
         self.rstream_state = DATA_STATE
 
+    def write_chunk(self, data=b'', chunk_size=4096):
+        if data == b'':
+            super(ICAPHandler, self).write_chunk(data)
+            return
+        for i in range(0, len(data), chunk_size):
+            super(ICAPHandler, self).write_chunk(data[i:i + chunk_size])
+
     @property
     def is_gzipped_content(self):
         ce = self.res_content_encoding
