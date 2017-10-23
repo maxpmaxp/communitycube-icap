@@ -61,6 +61,10 @@ class ICAPHandler(BaseICAPRequestHandler):
         return self._get_res_header(b'content-type')
 
     @property
+    def res_content_length(self):
+        return self._get_res_header(b'content-length')
+
+    @property
     def res_content_encoding(self):
         return self._get_res_header(b'content-encoding')
 
@@ -87,6 +91,9 @@ class ICAPHandler(BaseICAPRequestHandler):
             for v in self.enc_res_headers[h]:
                 if h == b'content-encoding':
                     self.set_enc_header(h, b'identity')
+                elif h == b'content-length':
+                    cl = int(self.res_content_length) + len(self.injection)
+                    self.set_enc_header(h, bytes(str(cl), "ascii"))
                 else:
                     self.set_enc_header(h, v)
 
@@ -97,13 +104,12 @@ class ICAPHandler(BaseICAPRequestHandler):
         if self.ieof:
             # All content was within the preview
             self.write_chunk(head)
-            self.write_chunk(b'')
         else:
             # Send unread tail
             self.write_chunk(head)
             for chunk in iterator:
                 self.write_chunk(chunk)
-            self.write_chunk(b'')
+        self.write_chunk(b'')
 
     def cont(self):
         super(ICAPHandler, self).cont()
