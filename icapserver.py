@@ -14,15 +14,6 @@ DATA_STATE = 'data'
 FINAL_STATE = 'final'
 
 
-class ICAPStreamWriter(object):
-
-    def __init__(self, handler):
-        self.handler = handler
-
-    def write(self, data):
-        self.handler.write_chunk(data)
-
-
 class ICAPHandler(BaseICAPRequestHandler):
 
     preview_size = b'512'
@@ -108,9 +99,6 @@ class ICAPHandler(BaseICAPRequestHandler):
         self.send_headers(True)
 
     def send_modified_content(self, chunks):
-        writer = ICAPStreamWriter(self)
-        if self.is_gzipped_content:
-            writer = Gz
         for ch in chunks:
             # Send unread tail
             self.write_chunk(ch)
