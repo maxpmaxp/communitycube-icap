@@ -135,7 +135,7 @@ class ICAPHandler(BaseICAPRequestHandler):
             i_to_insert = self.suitable_injection_index(chunk)
             if i_to_insert is None and processed_chunks:
                 # If a tag was splitted by 2 chunks like [...,'...</he', 'ad>...', ...]
-                chunk += processed_chunks.pop()
+                chunk = processed_chunks.pop() + chunk
                 i_to_insert = self.suitable_injection_index(chunk)
             if i_to_insert is not None:
                 chunk = chunk[:i_to_insert] + self.injection + chunk[:i_to_insert]
