@@ -174,8 +174,10 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.no_adaptation_required()
             return
 
+        # Send 100 Continue and read next chunk before sending response headers
         if self.rstream_state == BEFORE_CONTINUE:
             self.cont()
+            processed_chunks.append(next(chunks_iterator))
 
         # Return content
         self.send_modified_headers()
