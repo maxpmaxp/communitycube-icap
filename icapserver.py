@@ -116,7 +116,7 @@ class ICAPHandler(BaseICAPRequestHandler):
     @staticmethod
     def suitable_injection_index(s):
         """ Returns index of element coming right after the encloting </head> """
-        for marker in (b'</head>', b'</HEAD>', b'</title>', b'</TITLE>', b'</body>', b'</BODY>'):
+        for marker in (b'</head>', b'</HEAD>'):
             try:
                 i_marker = s.index(marker)
                 return i_marker
