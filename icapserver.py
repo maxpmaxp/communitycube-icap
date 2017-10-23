@@ -80,7 +80,7 @@ class ICAPHandler(BaseICAPRequestHandler):
                     break
 
     def read_preview(self):
-        preview = ""
+        preview = b''
         while True:
             chunk = self.read_chunk()
             if chunk == b'':
