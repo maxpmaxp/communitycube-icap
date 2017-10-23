@@ -102,9 +102,14 @@ class ICAPHandler(BaseICAPRequestHandler):
                 self.write_chunk(chunk)
             self.write_chunk(b'')
 
+    @property
+    def is_gzipped_content(self):
+        ce = self.res_content_encoding
+        return bool(ce) and b'gzip' in ce
+
     def iter_chuncks(self):
         unpack = lambda x: x
-        if b'gzip' in self.res_content_encoding:
+        if self.is_gzipped_content:
             unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
 
         while True:
