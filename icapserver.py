@@ -89,8 +89,15 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         self.send_headers(True)
 
-    def send_modified_content(self, head, iterator):
+    def write_chunk(self, data=b'', chunk_size=512):
+        if data == b'':
+            super(ICAPHandler, self).write_chunk()
+            return
 
+        for i in range(0, len(data), chunk_size):
+            super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
+
+    def send_modified_content(self, head, iterator):
         if self.ieof:
             # All content was within the preview
             self.write_chunk(head)
