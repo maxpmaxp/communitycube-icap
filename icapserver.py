@@ -5,7 +5,7 @@ import re
 
 from pyicap import BaseICAPRequestHandler
 
-RE_HEAD = re.compile(rb'(<head(?:\s[^>]*)?>)', re.IGNORECASE)
+RE_HEAD = re.compile(rb'(</head>)', re.IGNORECASE)
 
 
 class ICAPHandler(BaseICAPRequestHandler):
@@ -113,7 +113,7 @@ class ICAPHandler(BaseICAPRequestHandler):
 
             if RE_HEAD.search(preview_data):
                 was_modified = True
-                preview_data = RE_HEAD.sub(rb'\1' + self.injection, preview_data)
+                preview_data = RE_HEAD.sub(self.injection + rb'\1', preview_data)
                 self.send_modified_content(preview_data)
 
         if not was_modified:
