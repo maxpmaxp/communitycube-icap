@@ -138,7 +138,7 @@ class ICAPHandler(BaseICAPRequestHandler):
                 chunk = processed_chunks.pop() + chunk
                 i_to_insert = self.suitable_injection_index(chunk)
             if i_to_insert is not None:
-                chunk = chunk[:i_to_insert] + self.injection + chunk[:i_to_insert]
+                chunk = chunk[:i_to_insert] + self.injection + chunk[i_to_insert:]
                 processed_chunks.append(chunk)
                 break
             processed_chunks.append(chunk)
