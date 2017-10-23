@@ -2,6 +2,9 @@
 
 import logging, zlib
 
+from gzip import GzipFile
+from io import BytesIO
+
 from pyicap import BaseICAPRequestHandler
 
 
@@ -9,6 +12,15 @@ PREVIEW_STATE = 'preview'
 BEFORE_CONTINUE = 'before_continue'
 DATA_STATE = 'data'
 FINAL_STATE = 'final'
+
+
+class ICAPStreamWriter(object):
+
+    def __init__(self, handler):
+        self.handler = handler
+
+    def write(self, data):
+        self.handler.write_chunk(data)
 
 
 class ICAPHandler(BaseICAPRequestHandler):
@@ -96,6 +108,9 @@ class ICAPHandler(BaseICAPRequestHandler):
         self.send_headers(True)
 
     def send_modified_content(self, chunks):
+        writer = ICAPStreamWriter(self)
+        if self.is_gzipped_content:
+            writer = Gz
         for ch in chunks:
             # Send unread tail
             self.write_chunk(ch)
@@ -188,12 +203,23 @@ class ICAPHandler(BaseICAPRequestHandler):
         for chunk in chunks_iterator:
             processed_chunks.append(chunk)
 
-        headers_to_update = {b'content-length': bytes(str(sum(map(len, processed_chunks))), "ascii"),
-                             b'content-encoding': b'identity'}
+        if self.is_gzipped_content:
+            io = BytesIO()
+            gzfile = GzipFile(fileobj=io, mode='w')
+            map(gzfile.write, processed_chunks)
+            gzfile.flush()
+            gzfile.close()
+            compressed = io.getvalue()
+            content_length = len(compressed)
+            out_chunks = [compressed]
+        else:
+            out_chunks = processed_chunks
+            content_length = sum(map(len, processed_chunks))
 
         # Return content
+        headers_to_update = {b'content-length': bytes(str(content_length), 'ascii')}
         self.send_modified_headers(headers_to_update)
-        self.send_modified_content(processed_chunks)
+        self.send_modified_content(out_chunks)
 
 
 if __name__ == '__main__':
