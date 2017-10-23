@@ -1,12 +1,12 @@
 # -*- coding: utf8 -*-
 
 import logging
-import re
 
 from pyicap import BaseICAPRequestHandler
 
-RE_HEAD = re.compile(rb'(</head>)', re.IGNORECASE)
 
+PREVIEW_STATE = 'preview'
+DATA_STATE = 'data'
 
 class ICAPHandler(BaseICAPRequestHandler):
 
@@ -32,6 +32,10 @@ class ICAPHandler(BaseICAPRequestHandler):
                     b'f4b')
 
     # Simple echo-style server icap://icap.myorganization.com/communitycube_menu
+
+    def __init__(self, *args, **kwargs):
+        self.rstream_state = PREVIEW_STATE
+        super(ICAPHandler, self).__init__(*args, **kwargs)
 
     @property
     def res_status_code(self):
@@ -75,49 +79,77 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         self.send_headers(True)
 
-    def send_modified_content(self, head):
+    def send_modified_content(self, head, iterator):
 
         if self.ieof:
             # All content was within the preview
-            self.send_unmodified_headers()
             self.write_chunk(head)
             self.write_chunk(b'')
         else:
             # Send unread tail
-            self.cont()
-            self.send_unmodified_headers()
             self.write_chunk(head)
-            while True:
-                chunk = self.read_chunk()
+            for chunk in iterator:
                 self.write_chunk(chunk)
-                if chunk == b'':
-                    break
+            self.write_chunk(b'')
 
-    def read_preview(self):
-        preview = b''
+    def iter_chuncks(self):
         while True:
-            chunk = self.read_chunk()
-            if chunk == b'':
-                break
-            preview += chunk
-        return preview
+            if self.rstream_state == DATA_STATE:
+                chunk = self.read_chunk()
+                if chunk == b'':
+                    raise StopIteration()
+                yield chunk
+
+            if self.preview and self.rstream_state == PREVIEW_STATE:
+                res = b''
+                while True:
+                    chunk = self.read_chunk()
+                    if chunk == b'':
+                        break
+                    res += chunk
+                self.rstream_state = DATA_STATE
+                yield res
+                if self.ieof:
+                    raise StopIteration()
+                self.cont()
+
+    @staticmethod
+    def suitable_injection_index(s):
+        """ Returns index of element coming right after the encloting </head> """
+        for marker in (b'</head>', b'</HEAD>', b'</title>', b'</TITLE>', b'</body>', b'</BODY>'):
+            try:
+                i_marker = s.index(marker)
+                return i_marker
+            except ValueError:
+                pass
 
     def communitycube_menu_RESPMOD(self):
         if not self.is_adaptation_required():
             self.no_adaptation_required()
             return
 
-        was_modified = False
-        if self.preview:
-            preview_data = self.read_preview()
-
-            if RE_HEAD.search(preview_data):
-                was_modified = True
-                preview_data = RE_HEAD.sub(self.injection + rb'\1', preview_data)
-                self.send_modified_content(preview_data)
-
-        if not was_modified:
+        processed_chunks = []
+        chunks_iterator = self.iter_chuncks()
+        for chunk in chunks_iterator:
+            # Search in the most recent chunk
+            i_to_insert = self.suitable_injection_index(chunk)
+            if i_to_insert is None and processed_chunks:
+                # If a tag was splitted by 2 chunks like [...,'...</he', 'ad>...', ...]
+                chunk += processed_chunks.pop()
+                i_to_insert = self.suitable_injection_index(chunk)
+            if i_to_insert is not None:
+                chunk = chunk[:i_to_insert] + self.injection + chunk[:i_to_insert]
+                processed_chunks.append(chunk)
+                break
+            processed_chunks.append(chunk)
+        else:
+            # no suitable injection index was found
             self.no_adaptation_required()
+            return
+
+        # Return content
+        self.send_unmodified_headers()
+        self.send_modified_content(b"".join(processed_chunks), chunks_iterator)
 
 
 if __name__ == '__main__':
