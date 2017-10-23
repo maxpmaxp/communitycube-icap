@@ -79,6 +79,14 @@ class ICAPHandler(BaseICAPRequestHandler):
                 if chunk == b'':
                     break
 
+    def read_preview(self):
+        preview = ""
+        while True:
+            chunk = self.read_chunk()
+            if chunk == b'':
+                break
+            preview += chunk
+        return preview
 
     def communitycube_menu_RESPMOD(self):
         if not self.is_adaptation_required():
@@ -87,7 +95,7 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         was_modified = False
         if self.preview:
-            chunk = self.read_chunk()
+            preview_data = self.read_preview()
             tag = b'<head>'
             injection = b"""
             <script type='text/javascript'>
@@ -101,9 +109,9 @@ class ICAPHandler(BaseICAPRequestHandler):
             </script>
             """
             try:
-                i_tag_end = chunk.index(tag) + len(tag)
-                chunk = chunk[:i_tag_end] + injection + chunk[i_tag_end:]
-                self.send_modified_content(chunk)
+                i_tag_end = preview_data.index(tag) + len(tag)
+                preview_data = preview_data[:i_tag_end] + injection + preview_data[i_tag_end:]
+                self.send_modified_content(preview_data)
             except ValueError:
                 pass
 
