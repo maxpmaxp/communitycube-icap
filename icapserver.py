@@ -120,6 +120,9 @@ class ICAPHandler(BaseICAPRequestHandler):
             unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
 
         while True:
+            if self.rstream_state == FINAL_STATE:
+                raise StopIteration()
+
             if self.rstream_state == DATA_STATE:
                 chunk = self.read_chunk()
                 if chunk == b'':
@@ -180,8 +183,12 @@ class ICAPHandler(BaseICAPRequestHandler):
 
         # Send 100 Continue and read next chunk before sending response headers
         if self.rstream_state == BEFORE_CONTINUE:
-            self.cont()
-            processed_chunks.append(next(chunks_iterator))
+            try:
+                processed_chunks.append(next(chunks_iterator))
+                self.cont()
+            except StopIteration:
+                pass
+
 
         # Return content
         self.send_modified_headers()
