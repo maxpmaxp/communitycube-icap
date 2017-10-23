@@ -2,24 +2,11 @@
 
 import logging, zlib
 
-from gzip import GzipFile
-
 from pyicap import BaseICAPRequestHandler
 
 
 PREVIEW_STATE = 'preview'
 DATA_STATE = 'data'
-
-
-class ICAPStreamWriter(object):
-
-    def __init__(self, icap_handler):
-        self.icap_handler = icap_handler
-
-    def write(self, data):
-        if data:
-            self.icap_handler.write_chunk(data)
-
 
 class ICAPHandler(BaseICAPRequestHandler):
 
@@ -74,11 +61,6 @@ class ICAPHandler(BaseICAPRequestHandler):
     def res_content_encoding(self):
         return self._get_res_header(b'content-encoding')
 
-    @property
-    def is_gzipped_content(self):
-        ce = self.res_content_encoding
-        return bool(ce) and b'gzip' in ce
-
     def communitycube_menu_OPTIONS(self):
         self.set_icap_response(200)
         self.set_icap_header(b'Methods', b'RESPMOD')
@@ -100,37 +82,29 @@ class ICAPHandler(BaseICAPRequestHandler):
             self.set_enc_status(b' '.join(self.enc_res_status))
         for h in self.enc_res_headers:
             for v in self.enc_res_headers[h]:
-                self.set_enc_header(h, v)
+                if h == b'content-encoding':
+                    self.set_enc_header(h, b'identity')
+                else:
+                    self.set_enc_header(h, v)
 
         self.send_headers(True)
 
-    #def write_chunk(self, data=b'', chunk_size=4096):
-    #    if data == b'':
-    #        super(ICAPHandler, self).write_chunk()
-    #        return
-    #
-    #    for i in range(0, len(data), chunk_size):
-    #        super(ICAPHandler, self).write_chunk(data[i:i+chunk_size])
-
     def send_modified_content(self, head, iterator):
-        writer = ICAPStreamWriter(self)
-        if self.is_gzipped_content:
-            writer = GzipFile(fileobj=writer, mode='w')
 
         if self.ieof:
             # All content was within the preview
-            writer.write(head)
+            self.write_chunk(head)
             self.write_chunk(b'')
         else:
             # Send unread tail
-            writer.write(head)
+            self.write_chunk(head)
             for chunk in iterator:
-                writer.write(chunk)
+                self.write_chunk(chunk)
             self.write_chunk(b'')
 
     def iter_chuncks(self):
         unpack = lambda x: x
-        if self.is_gzipped_content:
+        if b'gzip' in self.res_content_encoding:
             unpack = zlib.decompressobj(32 + zlib.MAX_WBITS).decompress  # offset 32 to skip the header
 
         while True:
