@@ -194,7 +194,8 @@ class ICAPHandler(BaseICAPRequestHandler):
         if self.is_gzipped_content:
             io = BytesIO()
             gzfile = GzipFile(fileobj=io, mode='wb')
-            map(gzfile.write, processed_chunks)
+            for chunk in processed_chunks:
+                gzfile.write(chunk)
             gzfile.flush()
             gzfile.close()
             compressed = io.getvalue()
